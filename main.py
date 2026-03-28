@@ -509,3 +509,94 @@ def monthly_analysis(user_id: str):
     except Exception as e:
         print(f"[Monthly Analysis Error] {e}")
         return {"error": str(e)}
+
+# ---------------------------
+# DATASET ANALYSIS (CSV POWERED)
+# ---------------------------
+
+def _load_multiuser_csv():
+    import csv
+    csv_path = "lifeos_multiuser_dataset.csv"
+    if not os.path.exists(csv_path):
+        return {}
+    
+    data = {}
+    try:
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                uid = row.get('user_name')
+                if not uid: continue
+                if uid not in data: data[uid] = []
+                data[uid].append({
+                    "day": int(row.get('day', 1)),
+                    "sleep": float(row.get('sleep_hours', 0)),
+                    "steps": int(row.get('steps', 0)),
+                    "screen": float(row.get('screen_time_hours', 0)),
+                    "stress": row.get('stress', 'Medium')
+                })
+    except Exception as e:
+        print(f"[CSV Loader] Error: {e}")
+    return data
+
+MULTIUSER_DATA = _load_multiuser_csv()
+
+@app.get("/analysis/dataset/{user_name}/{days}")
+def analyze_dataset_window(user_name: str, days: int):
+    """
+    Processes the CSV dataset for a specific user window (7 or 30 days).
+    Runs a specialized Groq agent to generate habit recommendations.
+    """
+    if user_name not in MULTIUSER_DATA:
+        return {"error": f"User {user_name} not found in dataset."}
+    
+    records = MULTIUSER_DATA[user_name]
+    window = records[-days:] if len(records) > days else records
+    
+    # Calculate Averages
+    avg_sleep = sum(r['sleep'] for r in window) / len(window)
+    avg_steps = sum(r['steps'] for r in window) / len(window)
+    avg_screen = sum(r['screen'] for r in window) / len(window)
+    
+    # Groq Synthesis
+    prompt = f"""
+    You are the LIFEOS ANALYTICS AGENT.
+    Analyze this {days}-day health window for {user_name}:
+    - Avg Sleep: {avg_sleep:.1f}h
+    - Avg Steps: {avg_steps:.0f}
+    - Avg Screen Time: {avg_screen:.1f}h
+    - Trend: {window[-1]['stress']} current stress.
+
+    Identify 3-5 specific 'Habit Inculcation' protocols to improve longevity based on these averages.
+    Output ONLY JSON:
+    {{
+        "title": "{days}-Day Analysis Report",
+        "grade": "A|B|C|D",
+        "summary": "Short 2-sentence overview of the trend.",
+        "habits": [
+            {{"habit": "specific habit name", "action": "exact action step", "impact": "High|Medium|Low"}}
+        ],
+        "risk_flags": ["flag 1", "flag 2"]
+    }}
+    """
+    report_raw = call_groq(prompt, temperature=0.7)
+    
+    # Handle parsing if model returned string
+    if isinstance(report_raw, str):
+        try:
+            report = json.loads(report_raw)
+        except:
+            report = {{"error": "Failed to parse AI report"}}
+    else:
+        report = report_raw
+    
+    return {
+        "user_name": user_name,
+        "window_days": days,
+        "averages": {
+            "sleep": round(avg_sleep, 1),
+            "steps": int(avg_steps),
+            "screen": round(avg_screen, 1)
+        },
+        "report": report
+    }

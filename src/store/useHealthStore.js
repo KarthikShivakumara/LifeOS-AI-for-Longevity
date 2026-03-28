@@ -13,6 +13,33 @@ const useHealthStore = create((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (err) => set({ error: err }),
 
+  // 0. GUEST/DEMO MODE — bypass Supabase Auth
+  enterDemoMode: async (demoId = 'user_1') => {
+    set({ isLoading: true, error: null })
+    try {
+      // Create a fake guest profile based on CSV context
+      const guestUser = {
+        id: demoId,
+        email: `demo@lifeos.internal`,
+        name: demoId === 'user_1' ? 'Karthik (Demo)' : demoId === 'user_3' ? 'Bio-Optimizer (Demo)' : 'Guest User',
+        age: 30,
+        height: 175,
+        weight: 75,
+        isGuest: true
+      }
+      set({ user: guestUser })
+      localStorage.setItem('lifeos_user_id', guestUser.id)
+      localStorage.setItem('lifeos_user_name', guestUser.name)
+      localStorage.setItem('lifeos_is_guest', 'true')
+      
+      // Load their dataset context immediately
+      await get().fetchHistory(guestUser.id)
+      return guestUser
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+
   // 1. SIGNUP — create Supabase auth user + profile
   signup: async (formData) => {
     set({ isLoading: true, error: null })
@@ -133,12 +160,21 @@ const useHealthStore = create((set, get) => ({
     }
   },
 
-  // 3. Fetch history from Supabase via FastAPI
+  // 3. Fetch history — supports CSV fallback for demo users
   fetchHistory: async (userId) => {
     if (!userId || userId.startsWith('local_')) return
     try {
-      const response = await axios.get(`${API_URL}/user-history/${userId}`)
-      set({ allHistory: response.data || [] })
+      // If it's a demo user, we point them to the analysis endpoint to see patterns
+      const url = userId.startsWith('user_') 
+        ? `${API_URL}/analysis/dataset/${userId}/7`
+        : `${API_URL}/user-history/${userId}`
+      
+      const response = await axios.get(url)
+      
+      // If result has 'averages', it's from the new analysis endpoint
+      const data = response.data
+      const history = Array.isArray(data) ? data : (data.averages ? [data.averages] : [])
+      set({ allHistory: history })
     } catch (err) {
       console.warn('Could not fetch history.')
     }
@@ -148,23 +184,49 @@ const useHealthStore = create((set, get) => ({
   fetchLatestAnalysis: async (userId) => {
     if (!userId || userId.startsWith('local_')) return
     try {
-      const response = await axios.get(`${API_URL}/user-history/${userId}`)
-      const records = response.data
-      if (records && records.length > 0) {
-        const last = records[records.length - 1]
+      // If demo user, use the analysis/dataset endpoint to get the 'latest' look
+      const url = userId.startsWith('user_')
+        ? `${API_URL}/analysis/dataset/${userId}/7`
+        : `${API_URL}/user-history/${userId}`
+      
+      const response = await axios.get(url)
+      const data = response.data
+
+      // Normalize data for the dashboard
+      if (userId.startsWith('user_')) {
+        const last = data.averages
+        const report = data.report
         const healthData = {
-          health_score: last.score,
-          biological_age: last.biological_age,
-          label: last.score >= 80 ? 'Optimal' : last.score >= 60 ? 'Moderate' : 'Poor',
-          risk: last.risk,
-          future: last.future,
+          health_score: report.grade === 'A' ? 92 : report.grade === 'B' ? 78 : 55,
+          biological_age: 30, // Mock for demo
+          label: report.grade === 'A' ? 'Optimal' : 'Moderate',
+          risk: report.risk_flags || [],
+          future: report.summary,
           feedback: {
-            positives: last.positives || [],
-            improvements: last.improvements || []
+            positives: report.habits?.filter(h => h.impact === 'High').map(h => h.habit) || [],
+            improvements: report.habits?.filter(h => h.impact !== 'High').map(h => h.habit) || []
           }
         }
-        set({ healthData, allHistory: records })
+        set({ healthData, allHistory: [last] })
         return healthData
+      } else {
+        const records = data
+        if (records && records.length > 0) {
+          const last = records[records.length - 1]
+          const healthData = {
+            health_score: last.score,
+            biological_age: last.biological_age,
+            label: last.score >= 80 ? 'Optimal' : last.score >= 60 ? 'Moderate' : 'Poor',
+            risk: last.risk,
+            future: last.future,
+            feedback: {
+              positives: last.positives || [],
+              improvements: last.improvements || []
+            }
+          }
+          set({ healthData, allHistory: records })
+          return healthData
+        }
       }
     } catch (err) {
       console.warn('Could not restore session:', err)
@@ -175,11 +237,16 @@ const useHealthStore = create((set, get) => ({
   fetchProfile: async (userId) => {
     if (!userId || userId.startsWith('local_')) return
     try {
-      // Pull metadata from localStorage (no direct Supabase call needed)
+      // Pull metadata from localStorage (handle demo user context)
       const name = localStorage.getItem('lifeos_user_name')
-      const age = localStorage.getItem('lifeos_user_age')
+      const age = localStorage.getItem('lifeos_user_age') || 30
+      const isGuest = localStorage.getItem('lifeos_is_guest') === 'true'
+      
       if (name) {
-        set({ user: { id: userId, name, age: parseInt(age) || 30 } })
+        set({ user: { id: userId, name, age: parseInt(age), isGuest } })
+      } else if (userId.startsWith('user_')) {
+        // Fallback for direct URL demo entry
+        set({ user: { id: userId, name: 'Karthik (Demo)', age: 30, isGuest: true } })
       }
     } catch (err) {
       console.warn('Could not restore profile.')

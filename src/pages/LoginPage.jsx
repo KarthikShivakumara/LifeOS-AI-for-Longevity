@@ -103,6 +103,25 @@ const LoginPage = () => {
             </motion.button>
           </form>
 
+          <div className="pt-4 border-t border-white/5">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                const { enterDemoMode } = useHealthStore.getState()
+                enterDemoMode('user_1')
+                navigate('/dashboard')
+              }}
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-accent-purple/10 border border-accent-purple/20 text-accent-purple text-sm font-black uppercase tracking-widest hover:bg-accent-purple/20 transition-all"
+            >
+              <FlaskConical size={20} />
+              Enter Demo Lab
+            </motion.button>
+            <p className="text-[10px] text-center text-slate-500 mt-3 font-medium uppercase tracking-tighter">
+              Bypass email rate limits & explore with sample data
+            </p>
+          </div>
+
           <p className="text-center text-sm text-slate-500">
             New to LifeOS?{' '}
             <Link to="/profile" className="text-accent-purple font-black hover:underline">

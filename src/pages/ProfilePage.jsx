@@ -26,7 +26,7 @@ const StatCard = ({ icon: Icon, label, value, unit }) => (
 
 const ProfilePage = () => {
   const navigate = useNavigate()
-  const { user, signup, logout, isLoading, error, setError } = useHealthStore()
+  const { user, signup, logout, allHistory, isLoading, error, setError } = useHealthStore()
   const [formData, setFormData] = useState({
     name: '', email: '', password: '', confirmPassword: '',
     age: '', height: '', weight: ''
@@ -77,9 +77,17 @@ const ProfilePage = () => {
                   {user.email}
                 </p>
               )}
-              <div className="mt-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 inline-flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">Twin Active</span>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 inline-flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-[10px] font-black text-green-400 uppercase tracking-widest">Twin Active</span>
+                </div>
+                <div className="px-3 py-1 rounded-full bg-accent-purple/10 border border-accent-purple/20 inline-flex items-center gap-2">
+                  <Calendar size={12} className="text-accent-purple" />
+                  <span className="text-[10px] font-black text-accent-purple uppercase tracking-widest">
+                    Day {allHistory?.length + 1 || 1} of Longevity
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -101,7 +109,7 @@ const ProfilePage = () => {
               className="btn-primary flex-1 flex items-center justify-center gap-3 py-4 font-black uppercase tracking-widest"
             >
               <Dna size={20} />
-              Run AI Analysis
+              Add Todays Health Input
             </button>
             <button
               onClick={() => { logout(); navigate('/login') }}
@@ -252,6 +260,26 @@ const ProfilePage = () => {
             </>
           )}
         </motion.button>
+
+        <div className="pt-4 border-t border-white/5 relative z-10">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            type="button"
+            onClick={() => {
+              const { enterDemoMode } = useHealthStore.getState()
+              enterDemoMode('user_1')
+              navigate('/dashboard')
+            }}
+            className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-accent-purple/10 border border-accent-purple/20 text-accent-purple text-sm font-black uppercase tracking-widest hover:bg-accent-purple/20 transition-all"
+          >
+            <Dna size={20} />
+            Enter Demo Lab (Bypass Auth)
+          </motion.button>
+          <p className="text-[10px] text-center text-slate-500 mt-3 font-medium uppercase tracking-tighter">
+            Bypass email rate limits & explore with sample data
+          </p>
+        </div>
 
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent-purple/5 blur-[100px] rounded-full -mr-32 -mt-32 pointer-events-none" />
       </motion.form>

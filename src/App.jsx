@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { User, Activity, LayoutDashboard, LineChart, FlaskConical, LogOut, LogIn } from 'lucide-react'
+import { User, Activity, LayoutDashboard, LineChart, FlaskConical, LogOut, LogIn, Brain } from 'lucide-react'
 import useHealthStore from './store/useHealthStore'
 
 // Lazy load pages
@@ -11,6 +11,7 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage'))
 const HealthInputPage = React.lazy(() => import('./pages/HealthInputPage'))
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'))
 const ProgressPage = React.lazy(() => import('./pages/ProgressPage'))
+const AnalysisPage = React.lazy(() => import('./pages/AnalysisPage'))
 
 const SidebarItem = ({ to, icon: Icon, label }) => (
   <NavLink
@@ -76,6 +77,7 @@ const App = () => {
             <SidebarItem to="/profile" icon={User} label="Profile" />
             <SidebarItem to="/health-input" icon={Activity} label="Health Analysis" />
             <SidebarItem to="/progress" icon={LineChart} label="Trends" />
+            <SidebarItem to="/analysis-dataset" icon={Brain} label="AI Analysis" />
           </nav>
 
           {/* Bottom Auth Actions */}
@@ -123,6 +125,7 @@ const App = () => {
                 <Route path="/health-input" element={<HealthInputPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/analysis-dataset" element={<AnalysisPage />} />
               </Routes>
             </React.Suspense>
           </motion.div>
