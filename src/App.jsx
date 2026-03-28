@@ -16,10 +16,9 @@ const SidebarItem = ({ to, icon: Icon, label }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
-      `flex items-center gap-3 px-6 py-4 transition-all duration-300 border-r-2 ${
-        isActive
-          ? 'bg-accent-purple/10 border-accent-purple text-accent-purple'
-          : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-white'
+      `flex items-center gap-3 px-6 py-4 transition-all duration-300 border-r-2 ${isActive
+        ? 'bg-accent-purple/10 border-accent-purple text-accent-purple'
+        : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-white'
       }`
     }
   >

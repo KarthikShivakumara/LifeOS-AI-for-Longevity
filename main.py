@@ -368,3 +368,144 @@ def get_history(user_id: str):
     except Exception as e:
         print(f"[DB] History fetch error: {e}")
         return []
+
+# ---------------------------
+# GROQ ANALYSIS AGENTS
+# ---------------------------
+
+def _compute_averages(records: list) -> dict:
+    """Compute average lifestyle metrics across a set of records."""
+    n = len(records)
+    if n == 0:
+        return {}
+    return {
+        "count": n,
+        "avg_score": round(sum(r.get("score", 0) for r in records) / n, 1),
+        "avg_sleep": round(sum(r.get("sleep", 0) for r in records) / n, 1),
+        "avg_steps": round(sum(r.get("steps", 0) for r in records) / n),
+        "avg_screen": round(sum(r.get("screen_time", 0) for r in records) / n, 1),
+        "stress_breakdown": {
+            "Low": sum(1 for r in records if r.get("stress") == "Low"),
+            "Medium": sum(1 for r in records if r.get("stress") == "Medium"),
+            "High": sum(1 for r in records if r.get("stress") == "High"),
+        },
+        "best_score": max(r.get("score", 0) for r in records),
+        "worst_score": min(r.get("score", 0) for r in records),
+        "feelings": [r.get("feeling", "") for r in records if r.get("feeling")]
+    }
+
+def _run_analysis_agent(period: str, averages: dict, profile: dict) -> dict:
+    """Groq Analysis Agent: synthesizes multi-day data into structured insights."""
+    name = profile.get("full_name", "User")
+    age = profile.get("age", 30)
+
+    feelings_sample = "; ".join(averages.get("feelings", [])[:5]) or "Not provided"
+
+    prompt = f"""
+    You are the LifeOS {period} Analysis Agent.
+    Analyze {name}'s ({age} years old) aggregated lifestyle data from the past {period.lower()} and generate an intelligent health report.
+    
+    AGGREGATED DATA ({averages['count']} daily reports):
+    - Average Longevity Score: {averages.get('avg_score', 'N/A')}/100
+    - Best Score: {averages.get('best_score', 'N/A')} | Worst Score: {averages.get('worst_score', 'N/A')}
+    - Average Sleep: {averages.get('avg_sleep', 'N/A')}h/night
+    - Average Steps: {averages.get('avg_steps', 'N/A')}/day
+    - Average Screen Time: {averages.get('avg_screen', 'N/A')}h/day
+    - Stress Distribution: {averages.get('stress_breakdown', {})}
+    - Sample Feelings: "{feelings_sample}"
+    
+    Generate a precise, personalized health report. Be specific, not generic.
+    
+    OUTPUT ONLY JSON:
+    {{
+      "period_label": "{period}",
+      "overall_grade": "A+" | "A" | "B" | "C" | "D",
+      "trend": "Improving" | "Stable" | "Declining",
+      "trend_summary": "2-3 sentence narrative of the overall {period.lower()} pattern.",
+      "key_wins": ["positive finding 1", "positive finding 2", "positive finding 3"],
+      "risk_flags": ["concern 1 with specific data", "concern 2 with specific data"],
+      "lifestyle_recommendations": [
+        {{"title": "Protocol Title", "action": "Specific actionable step", "impact": "High" | "Medium" | "Low"}},
+        {{"title": "Protocol Title", "action": "Specific actionable step", "impact": "High" | "Medium" | "Low"}},
+        {{"title": "Protocol Title", "action": "Specific actionable step", "impact": "High" | "Medium" | "Low"}}
+      ],
+      "biological_insight": "One sentence on what this week/month means for {name}'s longevity trajectory."
+    }}
+    """
+    return call_groq(prompt, temperature=0.6)
+
+@app.get("/analysis/weekly/{user_id}")
+def weekly_analysis(user_id: str):
+    """Fetch last 7 days of records and run Groq Weekly Analysis Agent."""
+    try:
+        uuid.UUID(user_id)
+    except ValueError:
+        return {"error": "Invalid user ID"}
+
+    try:
+        from datetime import datetime, timedelta, timezone
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        records_res = supabase.table("health_records") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .gte("created_at", week_ago) \
+            .order("created_at") \
+            .execute()
+        records = records_res.data or []
+
+        if len(records) == 0:
+            return {"error": "No data for this week. Submit at least 1 daily report first."}
+
+        profile = {}
+        try:
+            prof_res = supabase.table("users").select("*").eq("id", user_id).single().execute()
+            profile = prof_res.data or {}
+        except:
+            pass
+
+        averages = _compute_averages(records)
+        analysis = _run_analysis_agent("Weekly", averages, profile)
+        print(f"[Weekly Analysis] {profile.get('full_name','User')} | Grade: {analysis.get('overall_grade')} | Trend: {analysis.get('trend')}")
+        return {**analysis, "averages": averages, "record_count": len(records)}
+
+    except Exception as e:
+        print(f"[Weekly Analysis Error] {e}")
+        return {"error": str(e)}
+
+@app.get("/analysis/monthly/{user_id}")
+def monthly_analysis(user_id: str):
+    """Fetch last 30 days of records and run Groq Monthly Analysis Agent."""
+    try:
+        uuid.UUID(user_id)
+    except ValueError:
+        return {"error": "Invalid user ID"}
+
+    try:
+        from datetime import datetime, timedelta, timezone
+        month_ago = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        records_res = supabase.table("health_records") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .gte("created_at", month_ago) \
+            .order("created_at") \
+            .execute()
+        records = records_res.data or []
+
+        if len(records) == 0:
+            return {"error": "No data for this month. Submit at least 1 daily report first."}
+
+        profile = {}
+        try:
+            prof_res = supabase.table("users").select("*").eq("id", user_id).single().execute()
+            profile = prof_res.data or {}
+        except:
+            pass
+
+        averages = _compute_averages(records)
+        analysis = _run_analysis_agent("Monthly", averages, profile)
+        print(f"[Monthly Analysis] {profile.get('full_name','User')} | Grade: {analysis.get('overall_grade')} | Trend: {analysis.get('trend')}")
+        return {**analysis, "averages": averages, "record_count": len(records)}
+
+    except Exception as e:
+        print(f"[Monthly Analysis Error] {e}")
+        return {"error": str(e)}
