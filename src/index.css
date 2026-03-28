@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-[#0a0a0a] text-slate-200 overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/10 border-white/20;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-accent-purple to-accent-blue rounded-xl font-bold text-white transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg shadow-accent-purple/20;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-semibold text-white transition-all duration-300 hover:bg-white/10 hover:border-white/20;
+  }
+
+  .input-field {
+    @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none transition-all duration-300 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-purple via-accent-cyan to-accent-blue;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Base Headings with Outfit Font */
+h1, h2, h3, h4 {
+  font-family: 'Outfit', sans-serif;
+}
